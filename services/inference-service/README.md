@@ -27,6 +27,17 @@ is also registered so `task_type=PII` returns a clean 501 — actual PII
 detection and redaction live in **platform-core-service** under
 `/api/v1/pii/*`.)
 
+### Multi-task pipeline
+
+`POST /api/v1/pipeline/inference` chains several tasks in sequence (e.g.
+Speech-to-Speech: `ASR → Translation → TTS`), feeding each task's output into
+the next. It composes the in-process TaskServices via the shared
+`Orchestrator` — no network hops to sibling services — so it inherits the same
+resolver cache, tracing, and error handling as the single-task endpoints.
+`GET /api/v1/pipeline/info` lists the supported task types and sequencing
+rules. Logic lives in `services/pipeline_service.py`; schemas in
+`models/pipeline.py`. (Folded in from the former standalone `pipeline-service`.)
+
 ## Architecture
 
 Full design, diagrams, and code-anchored detail live in the architecture docs:

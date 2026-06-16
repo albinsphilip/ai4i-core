@@ -71,17 +71,40 @@ class Orchestrator:
             attrs["method"] = request.method if request else ""
             attrs.update(get_context_attributes())
 
-            task_type = payload.get("task_type", "").upper()
-            self._validate_task_type(task_type)
+            return await self.route_task(payload)
 
-            # Resolve service and model BEFORE creating task service
-            service_info = await self._resolve_service_and_model(payload)
+    async def route_task(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Route a single task payload to its TaskService WITHOUT opening a root
+        request span.
 
-            # Instantiate and run the task service with the raw payload
-            task_service = self._get_task_service(service_info)
-            task_response = await task_service.process(payload, service_info)
+        Splitting this out of route_inference lets in-process composers (e.g.
+        the multi-task PipelineService) drive several task routings under one
+        already-open parent span: each call still emits its own `model` and
+        `ai-inference` child spans, so the whole chain stays in a single trace
+        instead of fragmenting into one root trace per task.
 
-            return task_response.dict() if hasattr(task_response, 'dict') else task_response
+        Args:
+            payload: Raw request payload dictionary
+
+        Returns:
+            Serialized response dictionary
+
+        Raises:
+            ValueError: If task_type is not registered
+            RuntimeError: If service resolution or inference fails
+        """
+        task_type = payload.get("task_type", "").upper()
+        self._validate_task_type(task_type)
+
+        # Resolve service and model BEFORE creating task service
+        service_info = await self._resolve_service_and_model(payload)
+
+        # Instantiate and run the task service with the raw payload
+        task_service = self._get_task_service(service_info)
+        task_response = await task_service.process(payload, service_info)
+
+        return task_response.dict() if hasattr(task_response, 'dict') else task_response
 
     def _validate_task_type(self, task_type: str) -> None:
         """Raise ValueError if task_type is not a known task."""

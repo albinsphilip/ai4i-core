@@ -14,7 +14,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 
 from orchestrator import Orchestrator
 from models.common import GenericInferenceResponse
+from models.pipeline import PipelineInferenceRequest, PipelineInferenceResponse
 from services.llm_service import OpenAIProxyService
+from services.pipeline_service import PipelineService
 from trace.request_span import traced_span, get_context_attributes
 
 logger = logging.getLogger(__name__)
@@ -389,6 +391,106 @@ async def run_ocr_inference(
 ) -> Dict[str, Any]:
     """Dedicated endpoint for OCR inference requests."""
     return await _run_inference(request, payload, orchestrator, default_task_type="OCR")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Multi-task pipeline (Speech-to-Speech, etc.)
+#
+# Ported from the standalone pipeline-service. Unlike the per-task endpoints
+# above (one task each), this composes several in-process TaskServices in
+# sequence via the Orchestrator — see services/pipeline_service.py for why the
+# original's HTTP/discovery/auth-propagation layers are gone.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/pipeline/inference",
+    response_model=PipelineInferenceResponse,
+    response_model_exclude_none=True,
+    summary="Multi-task Pipeline Inference Endpoint",
+    description="Execute a sequence of inference tasks (e.g. ASR → Translation → TTS)",
+    openapi_extra={"requestBody": {"content": {"application/json": {"example": {
+        "pipelineTasks": [
+            {"taskType": "asr", "config": {
+                "serviceId": "your-asr-service-id",
+                "language": {"sourceLanguage": "en"},
+            }},
+            {"taskType": "translation", "config": {
+                "serviceId": "your-nmt-service-id",
+                "language": {"sourceLanguage": "en", "targetLanguage": "hi"},
+            }},
+            {"taskType": "tts", "config": {
+                "serviceId": "your-tts-service-id",
+                "language": {"sourceLanguage": "hi"},
+                "gender": "female",
+            }},
+        ],
+        "inputData": {"audio": [{"audioContent": "<base64-encoded-audio>"}]},
+    }}}}},
+)
+async def run_pipeline_inference(
+    request: Request,
+    payload: PipelineInferenceRequest,
+    orchestrator: Orchestrator = Depends(get_orchestrator),
+) -> PipelineInferenceResponse:
+    """
+    Execute a multi-task AI pipeline.
+
+    Owns the root request span; each task's model/ai-inference spans nest under
+    it (PipelineService routes every step through Orchestrator.route_task).
+    Failures map to client-safe HTTP statuses the same way single-task routes
+    do — the full exception chain is logged server-side only.
+    """
+    logger.info("Pipeline inference request: %d task(s)", len(payload.pipelineTasks))
+    try:
+        with traced_span("request", root=True, classify_status=True) as attrs:
+            attrs["url"] = request.url.path
+            attrs["method"] = request.method
+            attrs["task_type"] = "PIPELINE"
+            attrs["pipeline.task_count"] = len(payload.pipelineTasks)
+            attrs["pipeline.task_types"] = ",".join(
+                t.taskType.value for t in payload.pipelineTasks
+            )
+            attrs.update(get_context_attributes())
+            return await PipelineService(orchestrator).run_pipeline_inference(payload)
+    except Exception as exc:
+        chain_types: list[str] = []
+        c: Optional[BaseException] = exc
+        while c is not None and len(chain_types) < 16:
+            chain_types.append(type(c).__name__)
+            c = c.__cause__
+        logger.error("Pipeline inference failed: exc_chain=%s", "→".join(chain_types))
+        raise _http_error_for(exc, "PIPELINE") from exc
+
+
+@router.get(
+    "/pipeline/info",
+    summary="Pipeline service information",
+    description="Supported pipeline task types, sequencing rules, and example pipelines",
+)
+async def get_pipeline_info() -> Dict[str, Any]:
+    """Describe the supported pipeline shapes and task-sequencing rules."""
+    return {
+        "service": "inference-service",
+        "capability": "multi-task-pipeline",
+        "supported_task_types": ["asr", "translation", "tts", "transliteration"],
+        "task_sequence_rules": {
+            "asr": ["translation"],
+            "translation": ["tts"],
+            "transliteration": ["translation", "tts"],
+        },
+        "example_pipelines": {
+            "speech_to_speech": {
+                "description": "Full Speech-to-Speech translation pipeline",
+                "tasks": ["asr", "translation", "tts"],
+            },
+            "text_to_speech": {
+                "description": "Text translation to speech pipeline",
+                "tasks": ["translation", "tts"],
+            },
+        },
+    }
+
 
 async def _run_llm_chat(request: Request, payload: Dict[str, Any], path: str) -> JSONResponse:
     """
