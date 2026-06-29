@@ -45,9 +45,13 @@ import {
   tenantUserHasRole,
   tenantUserMatchesSearch,
 } from "../../../utils/tenantUserRoles";
-import { PLATFORM_ROLE_FILTER_LIST, TENANT_ASSIGNABLE_ROLES } from "../../../constants/roles";
+import {
+  PLATFORM_ROLE_FILTER_LIST,
+  TENANT_ASSIGNABLE_ROLES,
+  DEFAULT_TENANT_USER_ROLE,
+  PLATFORM_ROLES,
+} from "../../../constants/roles";
 import { isDefaultTenant } from "../../../utils/defaultTenant";
-import { DEFAULT_TENANT_USER_ROLE, PLATFORM_ROLES } from "../../../constants/roles";
 import { PAGINATION } from "../../../constants/limits";
 import { isPlatformAdminUser, isTenantAdminUser, userHasRole } from "../../../utils/rbac";
 

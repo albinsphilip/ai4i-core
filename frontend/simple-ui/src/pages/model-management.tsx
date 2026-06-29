@@ -61,8 +61,8 @@ import AdminDataTable, {
   TableSelectField,
   type AdminTableColumn,
 } from "../components/common/AdminDataTable";
-import { PAGINATION } from "../constants";
 import {
+  PAGINATION,
   MODEL_TASK_TYPE_LIST,
   MODEL_VERSION,
   MODEL_VERSION_FILTER_LIST,
