@@ -48,7 +48,7 @@ import {
 import { PLATFORM_ROLE_FILTER_LIST, TENANT_ASSIGNABLE_ROLES } from "../../../constants/roles";
 import { isDefaultTenant } from "../../../utils/defaultTenant";
 import { DEFAULT_TENANT_USER_ROLE, PLATFORM_ROLES } from "../../../constants/roles";
-import { PAGINATION } from "../../../constants/pagination";
+import { PAGINATION } from "../../../constants/limits";
 import { isPlatformAdminUser, isTenantAdminUser, userHasRole } from "../../../utils/rbac";
 
 const USER_EMAIL_PAGE_SIZE = PAGINATION.USER_LIST_PAGE_SIZE;

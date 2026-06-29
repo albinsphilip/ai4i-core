@@ -8,19 +8,10 @@ import {
   LLM_CHAT_DEFAULT_TARGET_LANGUAGE,
   LLM_CHAT_MODEL,
   LLM_CHAT_MODELS,
-} from '../constants/llm';
+} from '../constants/modelManagement';
 import { apiService, apiEndpoints } from './api';
 import { chatCompletionResponseSchema } from './dto/schemas/inference';
 import { LLMInferenceRequest, LLMInferenceResponse } from '../types/llm';
-
-export {
-  AGRINET_MODEL,
-  isLlmChatService,
-  LLM_CHAT_DEFAULT_SOURCE_LANGUAGE,
-  LLM_CHAT_DEFAULT_TARGET_LANGUAGE,
-  LLM_CHAT_MODEL,
-  LLM_CHAT_MODELS,
-} from '../constants/llm';
 
 export interface LLMServiceDetailsResponse {
   service_id: string;

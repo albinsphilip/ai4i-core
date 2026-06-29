@@ -57,11 +57,11 @@ import { LABELS } from "../constants/labels";
 import ConfirmDialog from "../components/common/ConfirmDialog";
 import { useAdminTableSurface } from "../components/common/TableControls";
 import AdminDataTable, {
-  DEFAULT_PAGE_SIZE_OPTIONS,
   TableSearchField,
   TableSelectField,
   type AdminTableColumn,
 } from "../components/common/AdminDataTable";
+import { PAGINATION } from "../constants";
 import {
   MODEL_TASK_TYPE_LIST,
   MODEL_VERSION,
@@ -873,7 +873,7 @@ const ModelManagementPage: React.FC = () => {
                         getRowKey={(model) => model.modelId}
                         onRowClick={(model) => handleViewModel(model.modelId)}
                         paginate="client"
-                        pageSizeOptions={DEFAULT_PAGE_SIZE_OPTIONS}
+                        pageSizeOptions={PAGINATION.TABLE_PAGE_SIZE_OPTIONS}
                         isLoading={isLoading}
                         loadingMessage="Loading models..."
                         emptyMessage="No models in the registry yet."
